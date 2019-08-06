@@ -116,7 +116,7 @@ class CourseStatisticsPage(INGIniousAdminPage):
         return self.template_helper.get_renderer().course_admin.stats(course, stats_graph, stats_tasks, stats_users, daterange, error)
 
 
-def compute_statistics(tasks, data, ponderation):
+def compute_statistics(course, data, ponderation):
     """ 
     Compute statistics about submissions and tags.
     This function returns a tuple of lists following the format describe below:
