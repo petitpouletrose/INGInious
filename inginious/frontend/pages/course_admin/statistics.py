@@ -130,25 +130,22 @@ def compute_statistics(course, data, ponderation):
         [(<tag>, '61%', '50%'), (<tag>, '76%', '100%'), …]
     )
      """
-    
     super_dict = {}
     for submission in data:
-        task = tasks.get(submission["taskid"], None)
-        if task:
-            username = "".join(submission["username"])
-            tags_of_course = [tag for key, tag in task.get_course().get_tags().items() if tag.get_type() in [0,1]]
-            for tag in tags_of_course:
-                super_dict.setdefault(tag, {})
-                super_dict[tag].setdefault(username, {})
-                super_dict[tag][username].setdefault(submission["taskid"], [0,0,0,0])
-                super_dict[tag][username][submission["taskid"]][0] += 1
-                if "tests" in submission and tag.get_id() in submission["tests"] and submission["tests"][tag.get_id()]:
-                    super_dict[tag][username][submission["taskid"]][1] += 1
+        username = "".join(submission["username"])
+        tags_of_course = [tag for key, tag in course.get_tags().items() if tag.get_type() in [0,1]]
+        for tag in tags_of_course:
+            super_dict.setdefault(tag, {})
+            super_dict[tag].setdefault(username, {})
+            super_dict[tag][username].setdefault(submission["taskid"], [0,0,0,0])
+            super_dict[tag][username][submission["taskid"]][0] += 1
+            if "tests" in submission and tag.get_id() in submission["tests"] and submission["tests"][tag.get_id()]:
+                super_dict[tag][username][submission["taskid"]][1] += 1
 
-                if submission["best"]:
-                    super_dict[tag][username][submission["taskid"]][2] += 1
-                    if "tests" in submission and tag.get_id() in submission["tests"] and submission["tests"][tag.get_id()]:
-                        super_dict[tag][username][submission["taskid"]][3] += 1
+            if submission["best"]:
+                super_dict[tag][username][submission["taskid"]][2] += 1
+                if "tests" in submission and tag.get_id() in submission["tests"] and submission["tests"][tag.get_id()]:
+                    super_dict[tag][username][submission["taskid"]][3] += 1
 
     output = []
     for tag in super_dict:

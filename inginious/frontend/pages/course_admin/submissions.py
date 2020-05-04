@@ -94,6 +94,10 @@ class CourseSubmissionsPage(INGIniousSubmissionAdminPage):
                     limit))
 
         course_audiences = self.user_manager.get_course_audiences(course)
+        task_descs = self.database.tasks.find({"courseid": course.get_id()}).sort("order")
+        tasks = OrderedDict((task_desc["taskid"],
+                             WebAppTask(course.get_id(), task_desc["taskid"], task_desc, self.filesystem,
+                                        self.plugin_manager, self.problem_types)) for task_desc in task_descs)
         return self.template_helper.get_renderer().course_admin.submissions(course, tasks, users, course_audiences,
                                                                             data, statistics, user_input,
                                                                             self._allowed_sort, self._allowed_sort_name,
