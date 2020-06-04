@@ -147,61 +147,6 @@ class INGIniousTaskFile(DAVNonCollection):
             self._database.tasks.insert(task_desc)
 
 
-class INGIniousCourseFile(DAVNonCollection):
-    """ Protects the course description file. """
-    def __init__(self, path, environ, course_id):
-        DAVNonCollection.__init__(self, path, environ)
-        self._database = self.provider.database
-        self._course_id = course_id
-        self._content = FakeIO()
-
-    def support_recursive_delete(self):
-        return False
-
-    def get_content_length(self):
-        return len(self.get_content().read())
-
-    def get_content_type(self):
-        return "text/yaml"
-
-    def get_content(self):
-        course_desc = self._database.courses.find_one({"_id": self._course_id})
-        if course_desc:
-            del course_desc["_id"]
-            logger = logging.getLogger("inginious.webdav")
-            logger.info("Exporting course {}".format(self._course_id))
-            return compat.BytesIO(custom_yaml.dump(course_desc).encode("utf-8"))
-        return compat.BytesIO(b"")
-
-    def delete(self):
-        """ It is forbidden to delete a course description file"""
-        self._database.courses.delete_one({"courseid": self._course_id})
-        self.remove_all_properties(True)
-        self.remove_all_locks(True)
-
-    def copy_move_single(self, dest_path, is_move):
-        """ It is forbidden to delete a course description file"""
-        raise DAVError(HTTP_FORBIDDEN)
-
-    def move_recursive(self, dest_path):
-        """ It is forbidden to delete a course description file"""
-        raise DAVError(HTTP_FORBIDDEN)
-
-    def begin_write(self, content_type=None):
-        return self._content
-
-    def end_write(self, with_errors):
-        """ Update the course.yaml if possible. Verifies the content first, and make backups beforehand. """
-        logger = logging.getLogger("inginious.webdav")
-        logger.info("Importing course {}".format(self._course_id))
-        course_desc = custom_yaml.load(self._content.getvalue())
-        course_desc["_id"] = self._course_id
-        if self._database.courses.find_one({"_id": self._course_id}):
-            self._database.courses.replace_one({"_id": self._course_id}, course_desc)
-        else:
-            self._database.tasks.insert(course_desc)
-
-
 class TaskFilesFolder(FolderResource):
     def get_display_name(self):
         return "files"
@@ -229,20 +174,29 @@ class TaskFolder(DAVCollection):
 class CourseFolder(DAVCollection):
     def __init__(self, path, environ, courseid):
         DAVCollection.__init__(self, path, environ)
+        self.filesystem = self.provider.filesystem
         self.database = self.provider.database
         self.courseid = courseid
 
     def get_member_names(self):
         task_list = self.database.tasks.find({"courseid": self.courseid})
         task_list = list(task_list)
-        return [task["taskid"] for task in task_list] + ["course.yaml"]
+        return [task["taskid"] for task in task_list]
 
     def get_member(self, name):
-        if name == "course.yaml":
-            return INGIniousCourseFile(join_uri(self.path, name), self.environ, self.courseid)
-        else:
-            task = self.database.tasks.find_one({"courseid": self.courseid, "taskid": name})
-            return TaskFolder(join_uri(self.path, name), self.environ, self.courseid, task["taskid"]) if task else None
+        task = self.database.tasks.find_one({"courseid": self.courseid, "taskid": name})
+        return TaskFolder(join_uri(self.path, name), self.environ, self.courseid, task["taskid"]) if task else None
+
+    def create_collection(self, name):
+        self.database.tasks.insert({"courseid": self.courseid,
+                                    "taskid": name,
+                                    "name": name,
+                                    "problems": {},
+                                    "environment": "default"})
+        course_fs = self.filesystem.from_subfolder(self.courseid)
+        task_fs = course_fs.from_subfolder(name)
+        task_fs.ensure_exists()
+        return TaskFolder(join_uri(self.path, name), self.environ, self.courseid, name)
 
 class CourseCollection(DAVCollection):
     """Root collection, lists all mongo databases."""
