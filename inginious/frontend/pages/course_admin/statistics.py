@@ -4,11 +4,14 @@
 # more information about the licensing of this file.
 
 """ Utilities for computation of statistics  """
-from inginious.frontend.pages.course_admin.utils import INGIniousAdminPage
+import json
+
+from inginious.frontend.pages.course_admin.utils import INGIniousSubmissionAdminPage
 from datetime import datetime, date, timedelta
+import web
 
 
-class CourseStatisticsPage(INGIniousAdminPage):
+class CourseStatisticsPage(INGIniousSubmissionAdminPage):
     def _tasks_stats(self, courseid, tasks, daterange):
         stats_tasks = self.database.submissions.aggregate(
             [{"$match": {"submitted_on": {"$gte": daterange[0], "$lt": daterange[1]}, "courseid": courseid}},
@@ -93,13 +96,121 @@ class CourseStatisticsPage(INGIniousAdminPage):
         valid_submissions = sorted(valid_submissions.items())
         return (all_submissions, valid_submissions)
 
-    def GET_AUTH(self, courseid, f=None, t=None):  # pylint: disable=arguments-differ
+    def GET_AUTH(self, courseid, f=None, t=None, diag=None):  # pylint: disable=arguments-differ
         """ GET request """
+
+        def _clean_data(data):
+            """ tools method to clean data from request """
+            cleaned = data.replace("&#39;", "")
+            cleaned = cleaned.replace("[", "")
+            cleaned = cleaned.replace("]", "")
+            cleaned = cleaned.replace(" ", "")
+            cleaned = cleaned.split(",")
+            return cleaned
+
+        def _per_question_diagram_compilation():
+            dicgrade = {}
+            data = web.input()
+            student_ids = _clean_data(data["student_ids"])
+            task_ids = _clean_data(data["task_ids"])
+            evaluated_submissions = {}
+            for task_id in task_ids:
+                evaluated_submissions[task_id] = []
+
+            def students_per_grade(grades_per_tasks):
+                for key, value in grades_per_tasks.items():
+                    dicgrade[key] = {}
+                    for grade in value:
+                        grade = float(grade) / 5
+                        grade = round(grade * 2) * 0.5
+                        if grade not in dicgrade[key]:
+                            dicgrade[key][grade] = 1
+                        else:
+                            dicgrade[key][grade] = dicgrade[key][grade] + 1
+                return dicgrade
+
+            if student_ids == ['']:
+                student_ids = (self.database.aggregations.find_one({"courseid": courseid}, {"students": 1}))
+                student_ids = student_ids["students"]
+
+            subs = list(self.database.submissions.aggregate(
+                [
+                    {
+                        "$match": {"$and": [
+                            {"taskid": {"$in": task_ids}, "username": {"$in": student_ids}, "courseid": courseid}]}
+                    },
+                    {
+                        "$group":
+                            {
+                                "_id": {
+                                    "username": "$username",
+                                    "taskid": "$taskid",
+                                    "courseid": "$courseid"
+                                },
+                                "grade": {"$last": "$grade"},
+                                "submitted_on": {"$last": "$submitted_on"}
+                            }
+                    }
+                ]
+            ))
+            for sub in subs:
+                evaluated_submissions[sub["_id"]["taskid"]].append(sub["grade"])
+
+            table_stud_per_grade = students_per_grade(evaluated_submissions)
+            task_titles = {}
+            for task_id in tasks:
+                task_titles[task_id] = tasks[task_id].get_name(self.user_manager.session_language())
+
+            data = {}
+            data["stud_per_grad"] = table_stud_per_grade
+            data["task_titles"] = task_titles
+            return json.dumps(data)
+
+        def _per_status_diagram_compilation():
+            course = self.course_factory.get_course(courseid)
+            data = web.input()
+            task_ids = _clean_data(data["task_ids"])
+            tasks_data = {}
+            tasks_data["nstuds"] = len(self.user_manager.get_course_registered_users(course, False))
+            for task_id in task_ids:
+                data = list(self.database.user_tasks.aggregate(
+                    [
+                        {
+                            "$match":
+                                {
+                                    "courseid": courseid,
+                                    "taskid": task_id,
+                                    "username": {"$in": self.user_manager.get_course_registered_users(course, False)}
+                                }
+                        },
+                        {
+                            "$group":
+                                {
+                                    "_id": "$taskid",
+                                    "viewed": {"$sum": 1},
+                                    "attempted": {"$sum": {"$cond": [{"$ne": ["$tried", 0]}, 1, 0]}},
+                                    "succeeded": {"$sum": {"$cond": ["$succeeded", 1, 0]}}
+                                }
+                        }
+                    ]))
+                tasks_data[task_id] = data
+            task_titles = []
+            for task_id in tasks:
+                task_titles.append(tasks[task_id].get_name(self.user_manager.session_language()))
+            data = {}
+            data["stud_per_grad"] = tasks_data
+            data["task_titles"] = task_titles
+            return json.dumps(data)
+
         course, __ = self.get_course_and_check_rights(courseid)
         tasks = course.get_tasks()
         now = datetime.now().replace(minute=0, second=0, microsecond=0)
 
         error = None
+        if diag == "diag1":
+            return _per_question_diagram_compilation()
+        if diag == "diag2":
+            return _per_status_diagram_compilation()
         if f == None and t == None:
             daterange = [now - timedelta(days=14), now]
         else:
@@ -112,8 +223,12 @@ class CourseStatisticsPage(INGIniousAdminPage):
         stats_tasks = self._tasks_stats(courseid, tasks, daterange)
         stats_users = self._users_stats(courseid, daterange)
         stats_graph = self._graph_stats(courseid, daterange)
-
-        return self.template_helper.get_renderer().course_admin.stats(course, stats_graph, stats_tasks, stats_users, daterange, error)
+        tasks, user_data, aggregations, tutored_aggregations, \
+        tutored_users, checked_tasks, checked_users, show_aggregations = self.show_page_params(course, web.input())
+        return self.template_helper.get_renderer().course_admin.stats(course, stats_graph, stats_tasks, stats_users,
+                                                                      daterange, error, tasks,user_data,aggregations,
+                                                                      tutored_aggregations,tutored_users,checked_tasks,
+                                                                      checked_users,show_aggregations)
 
 
 def compute_statistics(tasks, data, ponderation):

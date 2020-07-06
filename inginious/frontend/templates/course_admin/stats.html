@@ -1,4 +1,4 @@
-$def with (course, stats_graph, stats_tasks, stats_users, daterange, error)
+$def with (course, stats_graph, stats_tasks, stats_users, daterange, error, tasks,user_data,audiences,tutored_audiences,tutored_users,checked_tasks,checked_users,show_audiences)
 
 $#
 $# This file is part of INGInious. See the LICENSE and the COPYRIGHTS files for
@@ -41,18 +41,60 @@ $var Navbar: $:NavbarF()
             <input type="datetime-local" class="form-control" id="stats_to" placeholder="To" value="$daterange[1].strftime('%Y-%m-%dT%H:%M:%S')">
         </div>
     </div>
+    $:include.course_admin.submissions_tabs.tasks(tasks, checked_tasks, "reporting")
+    $:include.course_admin.submissions_tabs.users(user_data, audiences, tutored_audiences, tutored_users, checked_users, show_audiences)
+
     <button type="submit" class="btn btn-primary">Update</button>
 </form>
 
 <h2>$:_("Stats between {} and {}").format(daterange[0].strftime("%d/%m/%Y %H:%M:%S"), daterange[1].strftime("%d/%m/%Y %H:%M:%S"))</h2>
 
-<h3>$:_("Submissions")</h3>
-<button onclick="resetZoom()">Reset Zoom</button>
-<canvas id="canvas"></canvas>
+<!-- Nav tabs -->
+<ul class="nav nav-tabs">
+  <li class="nav-item">
+    <a class="nav-link active" id="diag1" data-toggle="tab" href="#home">Submissions</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" id="diag2"  data-toggle="tab" href="#menu1">Per question</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" id="diag3"  data-toggle="tab" href="#menu2">Per status</a>
+  </li>
+</ul>
+
+<!-- Tab panes -->
+<div class="tab-content">
+  <div class="tab-pane container-fluid active" id="home">
+      <h3>$:_("Submissions")</h3>
+      <button onclick="resetZoom()">Reset Zoom</button>
+      <canvas id="canvas"></canvas>
+  </div>
+  <div class="tab-pane container-fluid fade" id="menu1">
+
+  </div>
+  <div class="tab-pane container-fluid fade" id="menu2"><canvas id="myChart2"></canvas></div>
+</div>
+
+
 <script type="text/javascript">"use strict";
     function submitStats() {
         var a = $$("#stats_from").val();
         var b = $$("#stats_to").val();
+        var tasks = [];
+        var students = [];
+        $$('input[name="tasks"]:checked').each(function()
+        {
+            tasks.push ($$(this).val ());
+        });
+        $$('input[name="users"]:checked').each(function()
+        {
+            students.push ($$(this).val ());
+        });
+        localStorage.setItem("from", a);
+        localStorage.setItem("to", b);
+        localStorage.setItem("tasks", tasks);
+        localStorage.setItem("students", students);
+
         var redirectTo = "$get_homepath(True)/admin/$course.get_id()/stats/"+a+"/"+b;
         console.log(redirectTo);
         window.location.pathname = redirectTo;
@@ -138,15 +180,8 @@ $var Navbar: $:NavbarF()
         }
     };
 
-    window.onload = function() {
-        var ctx = document.getElementById('canvas').getContext('2d');
-        window.myLine = new Chart(ctx, config);
-    };
-    window.resetZoom = function() {
-        window.myLine.resetZoom();
-    };
-
 </script>
+<script src="$get_homepath(True)/static/js/stats.js"></script>
 <h3>$:_("Tasks")</h3>
 <table class="table">
     <tr><th>Tasks</th><th># submissions</th><th># valid submissions</th></tr>
