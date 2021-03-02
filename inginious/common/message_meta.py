@@ -3,8 +3,18 @@
 # This file is part of INGInious. See the LICENSE and the COPYRIGHTS files for
 # more information about the licensing of this file.
 import inspect
+from abc import abstractmethod
+from typing import Dict, Type
 
 import msgpack
+
+
+class Message:
+    def _verify(self, force=False) -> bool:
+        return False  # implemented in metaclass
+
+    def dump(self) -> bytes:
+        pass  # implemented in metaclass
 
 
 class MessageMeta(type):
@@ -27,7 +37,7 @@ class MessageMeta(type):
                 self.container_id = container_id
                 self.a_number = a_number
     """
-    _registered_messages = {}
+    _registered_messages: Dict[str, Type[Message]] = {}
     DEBUG = True
 
     def __new__(cls, name, bases, namespace, **kargs):  # pylint: disable=unused-argument
@@ -251,3 +261,7 @@ class ZMQUtils(object):
     async def send(cls, socket, obj, send_white=False):
         message_obj = obj.dump()
         await socket.send_multipart([message_obj] if not send_white else ["", message_obj])
+
+
+if __name__ == "__main__":
+    run_tests()

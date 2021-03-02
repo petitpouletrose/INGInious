@@ -8,7 +8,7 @@
 """
 import os
 from datetime import datetime
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Any
 
 import docker
 import logging
@@ -29,7 +29,7 @@ class DockerInterface(object):  # pragma: no cover
     def _docker(self):
         return docker.from_env()
     
-    def get_containers(self, runtimes: List[DockerRuntime]) -> Dict[str, Dict[str, Dict[str, str]]]:
+    def get_containers(self, runtimes: List[DockerRuntime]) -> Dict[str, Dict[str, Dict[str, Any]]]:
         """
         :param runtimes: a list of DockerRuntime. Each DockerRuntime.envtype must appear only once.
         :return: a dict of available containers in the form
@@ -49,7 +49,7 @@ class DockerInterface(object):  # pragma: no cover
         logger = logging.getLogger("inginious.agent.docker")
 
         # First, create a dict with {"env": {"id": {"title": "alias", "created": 000, "ports": [0, 1]}}}
-        images = {x.envtype: {} for x in runtimes}
+        images: Dict[str, Dict[str, Any]] = {x.envtype: {} for x in runtimes}
 
         for x in self._docker.images.list(filters={"label": "org.inginious.grading.name"}):
             title = None
@@ -79,7 +79,7 @@ class DockerInterface(object):  # pragma: no cover
                 logging.getLogger("inginious.agent").exception("Container %s is badly formatted", title or "[cannot load title]")
 
         # Then, we keep only the last version of each name
-        latest = {}
+        latest: Dict[str, Dict[str, Dict[str, Any]]] = {}
         for envtype, content in images.items():
             latest[envtype] = {}
             for img_id, img_c in content.items():

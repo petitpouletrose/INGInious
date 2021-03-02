@@ -8,11 +8,12 @@ import logging
 import os
 import time
 from abc import abstractproperty, ABCMeta, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Set, Callable, Type, Coroutine
 
 import zmq
 
-from inginious.common.message_meta import ZMQUtils
+from inginious.common.filesystems.provider import FileSystemProvider
+from inginious.common.message_meta import ZMQUtils, Message
 from inginious.common.messages import AgentHello, BackendJobId, SPResult, AgentJobDone, BackendNewJob, BackendKillJob, \
     AgentJobStarted, AgentJobSSHDebug, Ping, Pong
 
@@ -49,7 +50,8 @@ class Agent(object, metaclass=ABCMeta):
     An INGInious agent, that grades specific kinds of jobs, and interacts with a Backend.
     """
 
-    def __init__(self, context, backend_addr, friendly_name, concurrency, filesystem):
+    def __init__(self, context: zmq.Context, backend_addr: str, friendly_name: str, concurrency: int,
+                 filesystem: FileSystemProvider):
         """
         :param context: a ZMQ context to which the agent will be linked
         :param backend_addr: address of the backend to which the agent should connect. The format is the same as ZMQ
@@ -70,16 +72,15 @@ class Agent(object, metaclass=ABCMeta):
         self.__backend_socket = self.__context.socket(zmq.DEALER)
         self.__backend_socket.ipv6 = True
 
-        self.__running_job = {}
-        self.__running_batch_job = set()
+        self.__running_job: Dict[BackendJobId, bool] = {}  # the boolean indicates whether we have sent the SSH debug info or not
 
-        self.__backend_last_seen_time = None
+        self.__backend_last_seen_time = time.time()
 
-        self.__asyncio_tasks_running = set()
+        self.__asyncio_tasks_running: Set[asyncio.Task] = set()
 
     @property
     @abstractmethod
-    def environments(self):
+    def environments(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
         """
         :return: a dict of available environments (containers most of the time) in the form
             {
@@ -99,7 +100,7 @@ class Agent(object, metaclass=ABCMeta):
         """
         return {}
 
-    async def run(self):
+    async def run(self) -> None:
         """
         Runs the agent. Answer to the requests made by the Backend.
         May raise an asyncio.CancelledError, in which case the agent should clean itself and restart completely.
@@ -118,7 +119,7 @@ class Agent(object, metaclass=ABCMeta):
 
         await run_listen
 
-    async def __check_last_ping(self, run_listen):
+    async def __check_last_ping(self, run_listen: asyncio.Task) -> None:
         """ Check if the last timeout is too old. If it is, kills the run_listen task """
         if self.__backend_last_seen_time < time.time()-10:
             self._logger.warning("Last ping too old. Restarting the agent.")
@@ -127,16 +128,16 @@ class Agent(object, metaclass=ABCMeta):
         else:
             self._loop.call_later(1, self._create_safe_task, self.__check_last_ping(run_listen))
 
-    async def __run_listen(self):
+    async def __run_listen(self) -> None:
         """ Listen to the backend """
         while True:
             message = await ZMQUtils.recv(self.__backend_socket)
             await self.__handle_backend_message(message)
 
-    async def __handle_backend_message(self, message):
+    async def __handle_backend_message(self, message: Message) -> None:
         """ Dispatch messages received from clients to the right handlers """
         self.__backend_last_seen_time = time.time()
-        message_handlers = {
+        message_handlers: Dict[Type[Message], Callable[[Any], Coroutine[None, None, None]]] = {
             BackendNewJob: self.__handle_new_job,
             BackendKillJob: self.kill_job,
             Ping: self.__handle_ping
@@ -147,11 +148,11 @@ class Agent(object, metaclass=ABCMeta):
             raise TypeError("Unknown message type %s" % message.__class__)
         self._create_safe_task(func(message))
 
-    async def __handle_ping(self, _ : Ping):
+    async def __handle_ping(self, _: Ping) -> None:
         """ Handle a Ping message. Pong the backend """
         await ZMQUtils.send(self.__backend_socket, Pong())
 
-    async def __handle_new_job(self, message: BackendNewJob):
+    async def __handle_new_job(self, message: BackendNewJob) -> None:
         self._logger.info("Received request for jobid %s", message.job_id)
 
         # For send_job_result internal checks
@@ -187,7 +188,7 @@ class Agent(object, metaclass=ABCMeta):
             await self.send_job_result(message.job_id, "crash", "An unknown error occurred in the agent. Please contact your course "
                                                                 "administrator.")
 
-    async def send_ssh_job_info(self, job_id: BackendJobId, host: str, port: int, username: str, key: str):
+    async def send_ssh_job_info(self, job_id: BackendJobId, host: str, port: int, username: str, key: str) -> None:
         """
         Send info about the SSH debug connection to the backend/client. Must be called *at most once* for each job.
         :exception JobNotRunningException: is raised when the job is not running anymore (send_job_result already called)
@@ -200,9 +201,10 @@ class Agent(object, metaclass=ABCMeta):
         self.__running_job[job_id] = True  # now we have sent ssh info
         await ZMQUtils.send(self.__backend_socket, AgentJobSSHDebug(job_id, host, port, username, key))
 
-    async def send_job_result(self, job_id: BackendJobId, result: str, text: str = "", grade: float = None, problems: Dict[str, SPResult] = None,
-                              tests: Dict[str, Any] = None, custom: Dict[str, Any] = None, state: str = "", archive: Optional[bytes] = None,
-                              stdout: Optional[str] = None, stderr: Optional[str] = None):
+    async def send_job_result(self, job_id: BackendJobId, result: str, text: str = "", grade: float = None,
+                              problems: Dict[str, SPResult] = None, tests: Dict[str, Any] = None,
+                              custom: Dict[str, Any] = None, state: str = "", archive: Optional[bytes] = None,
+                              stdout: Optional[str] = None, stderr: Optional[str] = None) -> None:
         """
         Send the result of a job back to the backend. Must be called *once and only once* for each job
         :exception JobNotRunningException: is raised when send_job_result is called more than once for a given job_id
@@ -226,7 +228,7 @@ class Agent(object, metaclass=ABCMeta):
         await ZMQUtils.send(self.__backend_socket, AgentJobDone(job_id, (result, text), round(grade, 2), problems, tests, custom, state, archive, stdout, stderr))
 
     @abstractmethod
-    async def new_job(self, message: BackendNewJob):
+    async def new_job(self, message: BackendNewJob) -> None:
         """
         Starts a new job. Most of the time, this function should not call send_job_result directly (as job are intended to be asynchronous). When
         there is a problem starting the job, raise CannotCreateJobException.
@@ -238,17 +240,17 @@ class Agent(object, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    async def kill_job(self, message: BackendKillJob):
+    async def kill_job(self, message: BackendKillJob) -> None:
         pass
 
-    def _create_safe_task(self, coroutine):
+    def _create_safe_task(self, coroutine: Coroutine[None, None, None]) -> None:
         """ Calls self._loop.create_task with a safe (== with logged exception) coroutine. When run() ends, these tasks
             are automatically cancelled"""
         task = self._loop.create_task(coroutine)
         self.__asyncio_tasks_running.add(task)
         task.add_done_callback(self.__remove_safe_task)
 
-    def __remove_safe_task(self, task):
+    def __remove_safe_task(self, task: asyncio.Task) -> None:
         exception = task.exception()
         if exception is not None:
             self._logger.exception("An exception occurred while running a Task", exc_info=exception)
@@ -258,7 +260,7 @@ class Agent(object, metaclass=ABCMeta):
         except:
             pass
 
-    def __cancel_remaining_safe_tasks(self):
+    def __cancel_remaining_safe_tasks(self) -> None:
         """ Cancel existing safe tasks, to allow the agent to restart properly """
         for x in self.__asyncio_tasks_running:
             x.cancel()

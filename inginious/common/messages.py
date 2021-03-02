@@ -4,7 +4,7 @@
 # more information about the licensing of this file.
 from typing import Dict, Optional, Any, Union, Tuple, List
 
-from inginious.common.message_meta import MessageMeta
+from inginious.common.message_meta import MessageMeta, Message
 
 # JobId of the backend, composed with the address of the client and the client job id
 BackendJobId = str
@@ -19,7 +19,7 @@ SPResult = Tuple[str, str]
 #################################################################
 
 
-class ClientHello(metaclass=MessageMeta, msgtype="client_hello"):
+class ClientHello(Message, metaclass=MessageMeta, msgtype="client_hello"):
     """
         Let the client say hello to the backend (and thus register to some events)
     """
@@ -31,7 +31,7 @@ class ClientHello(metaclass=MessageMeta, msgtype="client_hello"):
         self.name = name
 
 
-class ClientNewJob(metaclass=MessageMeta, msgtype="client_new_job"):
+class ClientNewJob(Message, metaclass=MessageMeta, msgtype="client_new_job"):
     """
         Creates a new job
         B->A.
@@ -71,7 +71,7 @@ class ClientNewJob(metaclass=MessageMeta, msgtype="client_new_job"):
         self.launcher = launcher
 
 
-class ClientKillJob(metaclass=MessageMeta, msgtype="client_kill_job"):
+class ClientKillJob(Message, metaclass=MessageMeta, msgtype="client_kill_job"):
     """
         Kills a running job.
         B->A.
@@ -84,7 +84,7 @@ class ClientKillJob(metaclass=MessageMeta, msgtype="client_kill_job"):
         self.job_id = job_id
 
 
-class ClientGetQueue(metaclass=MessageMeta, msgtype="client_get_queue"):
+class ClientGetQueue(Message, metaclass=MessageMeta, msgtype="client_get_queue"):
     """
        Ask the backend to send the status of its job queue
     """
@@ -98,7 +98,7 @@ class ClientGetQueue(metaclass=MessageMeta, msgtype="client_get_queue"):
 #################################################################
 
 
-class BackendUpdateEnvironments(metaclass=MessageMeta, msgtype="backend_update_environments"):
+class BackendUpdateEnvironments(Message, metaclass=MessageMeta, msgtype="backend_update_environments"):
     """
         Update the information about the environments on the client, from the informations retrieved from the agents
     """
@@ -110,7 +110,7 @@ class BackendUpdateEnvironments(metaclass=MessageMeta, msgtype="backend_update_e
         self.available_environments = available_environments
 
 
-class BackendJobStarted(metaclass=MessageMeta, msgtype="backend_job_started"):
+class BackendJobStarted(Message, metaclass=MessageMeta, msgtype="backend_job_started"):
     """
         Indicates to the backend that a job started
     """
@@ -122,7 +122,7 @@ class BackendJobStarted(metaclass=MessageMeta, msgtype="backend_job_started"):
         self.job_id = job_id
 
 
-class BackendJobDone(metaclass=MessageMeta, msgtype="backend_job_done"):
+class BackendJobDone(Message, metaclass=MessageMeta, msgtype="backend_job_done"):
     """
         Gives the result of a job.
     """
@@ -160,7 +160,7 @@ class BackendJobDone(metaclass=MessageMeta, msgtype="backend_job_done"):
         self.stderr = stderr
 
 
-class BackendJobSSHDebug(metaclass=MessageMeta, msgtype="backend_job_ssh_debug"):
+class BackendJobSSHDebug(Message, metaclass=MessageMeta, msgtype="backend_job_ssh_debug"):
     """
         Gives the necessary info to SSH into a job running in ssh debug mode
     """
@@ -179,7 +179,7 @@ class BackendJobSSHDebug(metaclass=MessageMeta, msgtype="backend_job_ssh_debug")
         self.user = user
         self.password = password
 
-class BackendGetQueue(metaclass=MessageMeta, msgtype="backend_get_queue"):
+class BackendGetQueue(Message, metaclass=MessageMeta, msgtype="backend_get_queue"):
     """
         Send the status of the job queue to the client
     """
@@ -215,7 +215,7 @@ class BackendGetQueue(metaclass=MessageMeta, msgtype="backend_get_queue"):
 #################################################################
 
 
-class BackendNewJob(metaclass=MessageMeta, msgtype="backend_new_job"):
+class BackendNewJob(Message, metaclass=MessageMeta, msgtype="backend_new_job"):
     """
         Creates a new job
         B->A.
@@ -249,7 +249,7 @@ class BackendNewJob(metaclass=MessageMeta, msgtype="backend_new_job"):
         self.environment_parameters = environment_parameters
 
 
-class BackendKillJob(metaclass=MessageMeta, msgtype="backend_kill_job"):
+class BackendKillJob(Message, metaclass=MessageMeta, msgtype="backend_kill_job"):
     """
         Kills a running job.
         B->A.
@@ -269,7 +269,7 @@ class BackendKillJob(metaclass=MessageMeta, msgtype="backend_kill_job"):
 #################################################################
 
 
-class AgentHello(metaclass=MessageMeta, msgtype="agent_hello"):
+class AgentHello(Message, metaclass=MessageMeta, msgtype="agent_hello"):
     """
         Let the agent say hello and announce which environments it has available
     """
@@ -294,7 +294,7 @@ class AgentHello(metaclass=MessageMeta, msgtype="agent_hello"):
         self.available_job_slots = available_job_slots
         self.available_environments = available_environments
 
-class AgentJobStarted(metaclass=MessageMeta, msgtype="agent_job_started"):
+class AgentJobStarted(Message, metaclass=MessageMeta, msgtype="agent_job_started"):
     """
         Indicates to the backend that a job started
         A->B.
@@ -307,7 +307,7 @@ class AgentJobStarted(metaclass=MessageMeta, msgtype="agent_job_started"):
         self.job_id = job_id
 
 
-class AgentJobDone(metaclass=MessageMeta, msgtype="agent_job_done"):
+class AgentJobDone(Message, metaclass=MessageMeta, msgtype="agent_job_done"):
     """
         Gives the result of a job.
         A->B.
@@ -346,7 +346,7 @@ class AgentJobDone(metaclass=MessageMeta, msgtype="agent_job_done"):
         self.stderr = stderr
 
 
-class AgentJobSSHDebug(metaclass=MessageMeta, msgtype="agent_job_ssh_debug"):
+class AgentJobSSHDebug(Message, metaclass=MessageMeta, msgtype="agent_job_ssh_debug"):
     """
         Gives the necessary info to SSH into a job running in ssh debug mode
     """
@@ -372,7 +372,7 @@ class AgentJobSSHDebug(metaclass=MessageMeta, msgtype="agent_job_ssh_debug"):
 #                                                               #
 #################################################################
 
-class Ping(metaclass=MessageMeta, msgtype="ping"):
+class Ping(Message, metaclass=MessageMeta, msgtype="ping"):
     """
     Ping message
     """
@@ -381,7 +381,7 @@ class Ping(metaclass=MessageMeta, msgtype="ping"):
         pass
 
 
-class Pong(metaclass=MessageMeta, msgtype="pong"):
+class Pong(Message, metaclass=MessageMeta, msgtype="pong"):
     """
     Pong message
     """
@@ -390,7 +390,7 @@ class Pong(metaclass=MessageMeta, msgtype="pong"):
         pass
 
 
-class Unknown(metaclass=MessageMeta, msgtype="unknown"):
+class Unknown(Message, metaclass=MessageMeta, msgtype="unknown"):
     """
     Unknown message. Sent by a server that do not know a specific client; probably because the server restarted
     """

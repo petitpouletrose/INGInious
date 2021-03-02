@@ -12,7 +12,7 @@ import struct
 import tempfile
 from dataclasses import dataclass
 from os.path import join as path_join
-from typing import Dict, Any, Union, List, Set
+from typing import Dict, Any, Union, List, Set, Optional, Iterable
 
 import msgpack
 import psutil
@@ -60,7 +60,9 @@ class DockerRunningStudentContainer:
 
 
 class DockerAgent(Agent):
-    def __init__(self, context, backend_addr, friendly_name, concurrency, tasks_fs: FileSystemProvider, address_host=None, external_ports=None, tmp_dir="./agent_tmp", runtimes=None):
+    def __init__(self, context, backend_addr, friendly_name, concurrency, tasks_fs: FileSystemProvider,
+                 address_host: Optional[str] = None, external_ports: Optional[Iterable[int]] = None,
+                 tmp_dir: str = "./agent_tmp", runtimes: Optional[Iterable[DockerRuntime]] = None):
         """
         :param context: ZeroMQ context for this process
         :param backend_addr: address of the backend (for example, "tcp://127.0.0.1:2222")
@@ -197,7 +199,7 @@ class DockerAgent(Agent):
         except:
             self._logger.exception("Exception in _watch_docker_events")
 
-    def __new_job_sync(self, message: BackendNewJob, future_results):
+    def __new_job_sync(self, message: BackendNewJob, future_results) -> DockerRunningJob:
         """ Synchronous part of _new_job. Creates needed directories, copy files, and starts the container. """
         course_id = message.course_id
         task_id = message.task_id
@@ -356,7 +358,7 @@ class DockerAgent(Agent):
         """
         Handles a new job: starts the grading container
         """
-        future_results = asyncio.Future()
+        future_results: asyncio.Future[DockerRunningJob] = asyncio.Future()
         out = await self._loop.run_in_executor(None, lambda: self.__new_job_sync(message, future_results))
         self._create_safe_task(self.handle_running_container(out, future_results=future_results))
         await self._timeout_watcher.register_container(out.container_id, out.time_limit, out.hard_time_limit)
@@ -453,6 +455,7 @@ class DockerAgent(Agent):
             return None
 
         # Send hello msg
+        assert self._runtimes is not None  # mypy
         hello_msg = {"type": "start", "input": info.inputdata, "debug": info.debug, "envtypes": {x.envtype: x.shared_kernel for x in self._runtimes.values()}}
         if info.run_cmd is not None:
             hello_msg["run_cmd"] = info.run_cmd
@@ -497,6 +500,7 @@ class DockerAgent(Agent):
                             elif msg["type"] == "ssh_key":
                                 # send the data to the backend (and client)
                                 self._logger.info("%s %s", info.container_id, str(msg))
+                                assert self._address_host  # ensure that the ssh debug is activated.
                                 await self.send_ssh_job_info(info.job_id, self._address_host, info.ports[22], msg["ssh_user"], msg["ssh_key"])
                             elif msg["type"] == "result":
                                 # last message containing the results of the container

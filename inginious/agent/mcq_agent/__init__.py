@@ -5,6 +5,8 @@
 import json
 import logging
 import gettext
+from gettext import gettext as _
+from typing import Set, Dict, Any, Tuple, List
 
 from inginious.agent import Agent, CannotCreateJobException
 from inginious import get_root_path
@@ -14,7 +16,7 @@ import builtins
 
 
 class MCQAgent(Agent):
-    def __init__(self, context, backend_addr, friendly_name, concurrency, tasks_filesystem, problem_types):
+    def __init__(self, context, backend_addr, friendly_name, concurrency, tasks_filesystem, problem_types) -> None:
         """
         :param context: ZeroMQ context for this process
         :param backend_addr: address of the backend (for example, "tcp://127.0.0.1:2222")
@@ -34,10 +36,10 @@ class MCQAgent(Agent):
         })
 
     @property
-    def environments(self):
+    def environments(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
         return {"mcq": {"mcq": {"id": "mcq", "created": 0}}}
 
-    def check_answer(self, problems, task_input, language):
+    def check_answer(self, problems, task_input, language) -> Tuple[bool, bool, List[str], Dict[str, Tuple[str, str]], int, int, str]:
         """
             Verify the answers in task_input. Returns six values
             1st: True the input is **currently** valid. (may become invalid after running the code), False else
@@ -47,10 +49,10 @@ class MCQAgent(Agent):
             5th: Number of subproblems that (already) contain errors. <= Number of subproblems
             6th: Number of errors in MCQ problems. Not linked to the number of subproblems
         """
-        valid = True
-        need_launch = False
-        main_message = []
-        problem_messages = {}
+        valid: bool = True
+        need_launch: bool = False
+        main_message: List[str] = []
+        problem_messages: Dict[str, Tuple[str, str]] = {}
         error_count = 0
         multiple_choice_error_count = 0
         states = {}
@@ -69,7 +71,7 @@ class MCQAgent(Agent):
             multiple_choice_error_count += problem_mc_error_count
         return valid, need_launch, main_message, problem_messages, error_count, multiple_choice_error_count, json.dumps(states)
 
-    async def new_job(self, msg: BackendNewJob):
+    async def new_job(self, msg: BackendNewJob) -> None:
         language = msg.inputdata.get("@lang", "")
         translation = self._translations.get(language, gettext.NullTranslations())
         # TODO: this would probably require a refactor.
@@ -87,18 +89,19 @@ class MCQAgent(Agent):
             translations_fs = course_fs.from_subfolder("$common").from_subfolder("student")\
                 .from_subfolder("$i18n")
 
+        translations: Dict[str, gettext.NullTranslations]
         if translations_fs.exists() and translations_fs.exists(language + ".mo"):
             translations = {language: gettext.GNUTranslations(translations_fs.get_fd(language + ".mo"))}
         else:
             translations = {language: gettext.NullTranslations()}
 
-        task_problems= msg.task_problems
-        problems = []
+        task_problems = msg.task_problems
+        problem_list = []
         for problemid, problem_content in task_problems.items():
             problem_class = self._problem_types.get(problem_content.get('type', ""))
-            problems.append(problem_class(problemid, problem_content, translations, task_fs))
+            problem_list.append(problem_class(problemid, problem_content, translations, task_fs))
 
-        result, need_emul, text, problems, error_count, mcq_error_count, state = self.check_answer(problems, msg.inputdata, language)
+        result, need_emul, text, problems, error_count, mcq_error_count, state = self.check_answer(problem_list, msg.inputdata, language)
 
         internal_messages = {
             "_wrong_answer_multiple": _("Wrong answer. Make sure to select all the valid possibilities"),
@@ -107,8 +110,8 @@ class MCQAgent(Agent):
         }
 
         for key, (p_result, messages) in problems.items():
-            messages = [internal_messages[message] if message in internal_messages else message for message in messages]
-            problems[key] = (p_result, "\n\n".join(messages))
+            messages_l = [internal_messages[message] if message in internal_messages else message for message in messages]
+            problems[key] = (p_result, "\n\n".join(messages_l))
 
         if need_emul:
             self._logger.warning("Task %s/%s is not a pure MCQ but has env=MCQ", msg.course_id, msg.task_id)
@@ -128,5 +131,5 @@ class MCQAgent(Agent):
             grade = 100.0 * float(nb_subproblems - error_count) / float(nb_subproblems)
             await self.send_job_result(msg.job_id, ("success" if result else "failed"), "\n".join(text), grade, problems, {}, {}, state, None)
 
-    async def kill_job(self, message: BackendKillJob):
+    async def kill_job(self, message: BackendKillJob) -> None:
         pass

@@ -9,10 +9,10 @@ from collections import OrderedDict
 
 import yaml as original_yaml
 try:
-    from yaml import CSafeLoader as SafeLoader
-    from yaml import CSafeDumper as SafeDumper
+    from yaml import CSafeLoader as SafeLoader  # type: ignore
+    from yaml import CSafeDumper as SafeDumper  # type: ignore
 except ImportError:
-    from yaml import SafeLoader, SafeDumper
+    from yaml import SafeLoader, SafeDumper  # type: ignore
 
 def load(stream):
     """
