@@ -321,7 +321,12 @@ class Client(BetterParanoidPirateClient):
         self._loop.call_soon_threadsafe(asyncio.ensure_future,
                                         self._create_transaction(msg, task=task, callback=safe_callback,
                                                                  ssh_callback=ssh_callback))
-
+        from inginious.backend.tasks import add
+        result = add.delay(4, 4)
+        while not result.ready():
+            print("LUDO NOT READY")
+        value = result.get(timeout=1)
+        print(value)
         return job_id
 
     def kill_job(self, job_id):
