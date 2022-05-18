@@ -50,7 +50,7 @@ Found nothing revelant? It's now time to open a new [issue](https://github.com/U
 Explain the problem and include additional details to help maintainers reproduce the problem:
 
 - Write a clear and descriptive title.
-- Be explicit in the description
+- Be explicit in the description.
 - Give the expected behaviour.
 - Give all steps to reproduce the problem.
 - Include screenshots or animated content.
@@ -64,9 +64,36 @@ Once this verification is done, you can create a new issue juste like [reporting
 
 ### Translations
 
+Translation is managed with [weblate](https://weblate.info.ucl.ac.be/engage/inginious/?utm_source=widget). It is so possible to translate sentences in available languages or start a translation for a new language. Both are really useful for INGInious project but please respect some guidelines:
+
+- Avoid shortcuts or argo.
+- Avoid literal translations.
+- Keep it accurate and do not change meaning.
+- Make sure that all terms are used appropriately.
+
 ### First Contribution
+
+Wanna start contributing to INGInious but don't know where to start, please refer to those pointers:
+
+- [Good first issues](https://github.com/UCL-INGI/INGInious/labels/Good%20First%20Issue) : Issues that do not need a lot of changes.
+- [High priority issues](https://github.com/UCL-INGI/INGInious/labels/High%20priority) : Issues that needs more work but are also urgent.
+
+Issues generally come with comments that may help to understand the problem/request. feel free to enter conversation if you need complement of information.
 
 ### Pull Requests
 
+Pull request is a sustainable system for maintainers to review contributions. It is well [documented](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests) and helps maintainers to keep quality of INGInious project. To help maintainers treating pull requests effectively, here are some guidelines:
+
+- Set a comprehensive title. First define a general topic (frontend,backend,agent,tests,...) within brackets. Then, describe concisely what is the purpose.
+- Describe the new feature,bug fix,... that the PR resolve.
+- Mention the concerned issue (if related). If it fix an issue, auto resolve it using [keywords](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword).
+- Add some media that shows what the PR do (if related).
+- Ask for a review to a dedicated maintainer if you had previous discussion with him about your PR.
+
+Once the PR is submitted :
+
+- Pay attention to automatic checks and resolve if needed (especially about Contributor License Agreement).
+
+While the prerequisites above must be satisfied prior to having your pull request reviewed, the reviewer(s) may ask you to complete additional design work, tests, or other changes before your pull request can be ultimately accepted.
 
 ## Additional Notes
