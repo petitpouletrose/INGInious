@@ -9,7 +9,12 @@ from datetime import datetime
 
 
 def parse_date(date, default=None):
-    """ Parse a valid date """
+    """
+    Parse a valid date
+    :param: date :  A date in  str format.
+    :param: default : A default date in datetime format.
+    :return: A datetime object representing the date or the default value
+    """
     if date == "":
         if default is not None:
             return default
@@ -46,25 +51,28 @@ class AccessibleTime(object):
             2014-07-16 / 2014-07-20 11:24:00 / 2014-07-21 (...)
             2014-07-16 / 2014-07-20 / 2014-07-21 (...)
         """
-        if val is None or val == "" or val is True:
-            self._val = [datetime.min, datetime.max]
-            self._soft_end = datetime.max
-        elif val == False:
-            self._val = [datetime.max, datetime.max]
-            self._soft_end = datetime.max
-        else:  # str
-            values = val.split("/")
-            if len(values) == 1:
-                self._val = [parse_date(values[0].strip(), datetime.min), datetime.max]
+        if isinstance(val, (bool, str)) or val is None:
+            if val is None or val == "" or val is True:
+                self._val = [datetime.min, datetime.max]
                 self._soft_end = datetime.max
-            elif len(values) == 2:
-                # Has start time and hard deadline
-                self._val = [parse_date(values[0].strip(), datetime.min), parse_date(values[1].strip(), datetime.max)]
-                self._soft_end = self._val[1]
-            else:
-                # Has start time, soft deadline and hard deadline
-                self._val = [parse_date(values[0].strip(), datetime.min), parse_date(values[2].strip(), datetime.max)]
-                self._soft_end = parse_date(values[1].strip(), datetime.max)
+            elif val == False:
+                self._val = [datetime.max, datetime.max]
+                self._soft_end = datetime.max
+            else:  # str
+                values = val.split("/")
+                if len(values) == 1:
+                    self._val = [parse_date(values[0].strip(), datetime.min), datetime.max]
+                    self._soft_end = datetime.max
+                elif len(values) == 2:
+                    # Has start time and hard deadline
+                    self._val = [parse_date(values[0].strip(), datetime.min), parse_date(values[1].strip(), datetime.max)]
+                    self._soft_end = self._val[1]
+                else:
+                    # Has start time, soft deadline and hard deadline
+                    self._val = [parse_date(values[0].strip(), datetime.min), parse_date(values[2].strip(), datetime.max)]
+                    self._soft_end = parse_date(values[1].strip(), datetime.max)
+        else:
+            raise Exception("wrong type")
 
         # Having a soft deadline after the hard one does not make sense, make soft-deadline same as hard-deadline
         if self._soft_end > self._val[1]:
