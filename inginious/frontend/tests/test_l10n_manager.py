@@ -10,9 +10,9 @@ import pytest
 from inginious.frontend.l10n_manager import L10nManager
 
 
-class TestInstaller(object):
+class TestL10nManager(object):
 
-    def test_installer_init(self):
+    def test_l10n_manager_init(self):
         inst = L10nManager()
         assert inst is not None
 
@@ -23,7 +23,7 @@ class TestInstaller(object):
         lang = "fr"
         translation_object = inst.get_translation_obj(lang)
         assert translation_object is not None
-        lang="test"
+        lang = "test"
         translation_object = inst.get_translation_obj(lang)
         assert isinstance(translation_object, gettext.NullTranslations)
 
@@ -31,5 +31,3 @@ class TestInstaller(object):
         inst = L10nManager()
         get_text = inst.gettext("test")
         assert get_text is not None
-
-
