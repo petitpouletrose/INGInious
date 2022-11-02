@@ -706,15 +706,15 @@ Depending on the configuration of some courses, teachers may have set custom var
 
     .. code-tab:: ipython3
 
-        lang = get_input("@custom")
+        lang = get_input("@settings")
 
     .. code-tab:: py
 
-        lang = input.get_input("@custom")
+        lang = input.get_input("@settings")
 
     .. code-tab:: bash
 
-        getinput @custom
+        getinput @settings
 
 Finally, note that plugins are free to add new `@`-prefixed fields to the available input using the `new_submission` hook.
 

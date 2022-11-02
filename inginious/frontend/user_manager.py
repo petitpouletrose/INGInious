@@ -417,10 +417,10 @@ class UserManager:
             apikey = retval.get("apikey", None)
         return apikey
 
-    def get_user_custom_values(self, username, courseid):
+    def get_course_user_settings(self, username, courseid):
         user = self._database.users.find_one({"username": username})
-        custom_values = user.get("custom",{})
-        return custom_values.get(courseid,{})
+        course_user_settings = user.get("course_settings", {})
+        return course_user_settings.get(courseid, {})
 
     def get_user_activate_hash(self, username):
         """
