@@ -21,7 +21,7 @@ class CourseUserSettingPage(INGIniousAuthPage):
         username = self.user_manager.session_username()
         if not self._is_accessible(courseid, username):
             return self.template_helper.render("course_unavailable.html")
-        return self.show_page(courseid, self.user_manager.get_course_user_settings(self, username, courseid))
+        return self.show_page(courseid, self.user_manager.get_course_user_settings(username, courseid))
 
     def POST_AUTH(self, courseid):
         """ POST request """
