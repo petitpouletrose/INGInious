@@ -706,11 +706,11 @@ Depending on the configuration of some courses, teachers may have set custom var
 
     .. code-tab:: ipython3
 
-        lang = get_input("@settings")
+        settings = get_input("@settings")
 
     .. code-tab:: py
 
-        lang = input.get_input("@settings")
+        settings = input.get_input("@settings")
 
     .. code-tab:: bash
 
